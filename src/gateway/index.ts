@@ -12,6 +12,7 @@ import { startGateway } from './gateway.js';
 
 // Suppress noisy Baileys Signal protocol session logs
 const SUPPRESSED_PREFIXES = [
+  'Closing open session',
   'Closing session:',
   'Opening session:',
   'Removing old closed session:',
@@ -55,7 +56,7 @@ async function run(): Promise<void> {
       console.log(`Created default config at ${configPath}`);
       console.log('Add your phone number to channels.whatsapp.allowFrom to receive messages.');
     }
-    return;
+    process.exit(0);
   }
 
   const server = await startGateway();
