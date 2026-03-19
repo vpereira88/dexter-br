@@ -23,7 +23,7 @@
       "agentId": "default",
       "match": {
         "channel": "whatsapp",
-        "peerId": "120363407692865732@g.us",
+        "peerId": "SEU_ID_DE_GRUPO@g.us",
         "peerKind": "group"
       }
     }
