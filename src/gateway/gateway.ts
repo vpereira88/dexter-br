@@ -34,7 +34,7 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
     cfg,
     channel: 'whatsapp',
     accountId: inbound.accountId,
-    peer: { kind: inbound.chatType, id: inbound.senderId },
+    peer: { kind: inbound.chatType, id: inbound.chatType === 'group' ? inbound.chatId : inbound.senderId },
   });
 
   const storePath = resolveSessionStorePath(route.agentId);

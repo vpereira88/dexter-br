@@ -9,8 +9,10 @@
       "enabled": true,
       "accounts": {
         "default": {
-          "dmPolicy": "pairing",
+          "dmPolicy": "allowlist",
+          "allowFrom": ["+55XXXXXXXXXXX"],
           "groupPolicy": "open",
+          "allowedGroups": ["SEU_ID_DE_GRUPO@g.us"],
           "groupAllowFrom": ["*"],
           "sendReadReceipts": true
         }

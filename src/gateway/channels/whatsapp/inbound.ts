@@ -87,6 +87,7 @@ export async function monitorWebInbox(params: {
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   groupAllowFrom: string[];
+  allowedGroups?: string[];
   sendReadReceipts?: boolean;
   onMessage: (msg: WhatsAppInboundMessage) => Promise<void>;
 }): Promise<{
@@ -176,11 +177,13 @@ export async function monitorWebInbox(params: {
         selfE164,
         senderE164: isGroup ? toPhoneFromJid(senderJid) || null : from || null,
         group: isGroup,
+        groupId: isGroup ? remoteJid : undefined,
         isFromMe: Boolean(message.key?.fromMe),
         dmPolicy: params.dmPolicy,
         groupPolicy: params.groupPolicy,
         allowFrom: params.allowFrom,
         groupAllowFrom: params.groupAllowFrom,
+        allowedGroups: params.allowedGroups,
         messageTimestampMs,
         connectedAtMs,
         reply: async (text: string) => {

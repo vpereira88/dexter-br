@@ -13,6 +13,7 @@ export async function monitorWhatsAppChannel(params: {
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   groupAllowFrom: string[];
+  allowedGroups?: string[];
   sendReadReceipts?: boolean;
   heartbeatSeconds?: number;
   reconnect?: ReconnectPolicy;
@@ -43,6 +44,7 @@ export async function monitorWhatsAppChannel(params: {
         dmPolicy: params.dmPolicy,
         groupPolicy: params.groupPolicy,
         groupAllowFrom: params.groupAllowFrom,
+        allowedGroups: params.allowedGroups,
         sendReadReceipts: params.sendReadReceipts,
         onMessage: async (msg) => {
           handledMessages += 1;
