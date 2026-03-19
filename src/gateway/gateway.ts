@@ -105,7 +105,7 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
       debugLog(`[gateway] sending reply to ${inbound.replyToJid}`);
       await sendMessageWhatsApp({
         to: inbound.replyToJid,
-        body: cleanedAnswer,
+        body: `*DexterBr*:\n${cleanedAnswer}`,
         accountId: inbound.accountId,
       });
       debugLog(`[gateway] reply sent`);

@@ -238,7 +238,8 @@ export async function monitorWebInbox(params: {
           await sock.sendPresenceUpdate('composing', replyToJid);
         },
         reply: async (text: string) => {
-          await sock.sendMessage(replyToJid, { text });
+          const prefixedText = `*DexterBr*:\n${text}`;
+          await sock.sendMessage(replyToJid, { text: prefixedText });
         },
         sendMedia: async (payload) => {
           await sock.sendMessage(replyToJid, payload);

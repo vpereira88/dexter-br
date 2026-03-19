@@ -77,6 +77,7 @@ export function isAllowedPhone(params: {
 
 export function buildPairingReply(code: string, senderId: string): string {
   return [
+    '*DexterBr*:',
     'Dexter access request received.',
     `Sender ID: ${senderId}`,
     `Approval code: ${code}`,

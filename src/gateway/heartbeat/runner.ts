@@ -154,7 +154,7 @@ export function startHeartbeatRunner(params: { configPath?: string }): Heartbeat
         const cleaned = cleanMarkdownForWhatsApp(result.cleanedText);
         await sendMessageWhatsApp({
           to: session.lastTo,
-          body: cleaned,
+          body: `*DexterBr*:\n${cleaned}`,
           accountId: session.lastAccountId,
         });
         debugLog(`[heartbeat] sent message to ${session.lastTo}`);
