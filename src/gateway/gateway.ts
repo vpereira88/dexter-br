@@ -40,6 +40,24 @@ async function handleInbound(
   console.log(`Inbound message ${inbound.from} (${inbound.chatType}, ${inbound.body.length} chars): "${bodyPreview}"`);
   debugLog(`[gateway] handleInbound from=${inbound.from} body="${inbound.body.slice(0, 30)}..."`);
 
+  // Handle !id command: returns the chat/group ID so the admin can whitelist it
+  if (inbound.body.trim().toLowerCase() === '!id') {
+    debugLog(`[gateway] !id command received from ${inbound.from} (isAdmin=${inbound.isAdmin})`);
+    const label = inbound.chatType === 'group'
+      ? `*Grupo:* ${inbound.groupSubject ?? 'desconhecido'}\n*ID:* \`${inbound.chatId}\``
+      : `*Conversa direta*\n*ID (telefone):* \`${inbound.from}\``;
+    try {
+      await sendMessageWhatsApp({
+        to: inbound.replyToJid,
+        body: `*DexterBr*:\n${label}`,
+        accountId: inbound.accountId,
+      });
+    } catch (err) {
+      debugLog(`[gateway] failed to send !id reply: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return;
+  }
+
   // Handle !stop command: immediately shut down the gateway
   if (inbound.body.trim().toLowerCase() === '!stop') {
     debugLog(`[gateway] !stop command received from ${inbound.from}`);

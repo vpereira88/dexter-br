@@ -1,5 +1,11 @@
 {
-  "_comment": "Copie este arquivo para ~/.dexter/gateway.json e ajuste conforme necessário.",
+  "_comment": [
+    "Configuração avançada do gateway. A maioria das configurações de acesso",
+    "pode ser feita diretamente no .env (DEXTER_ADMIN_PHONE, DEXTER_ALLOW_PHONES,",
+    "DEXTER_ALLOW_GROUPS, DEXTER_DM_POLICY, DEXTER_GROUP_POLICY).",
+    "Copie este arquivo para ~/.dexter/gateway.json apenas se precisar de",
+    "configurações avançadas como múltiplas contas ou bindings customizados."
+  ],
   "gateway": {
     "accountId": "default",
     "logLevel": "info"
@@ -9,9 +15,10 @@
       "enabled": true,
       "accounts": {
         "default": {
-          "dmPolicy": "pairing",
-          "groupPolicy": "open",
-          "groupAllowFrom": ["*"],
+          "_comment": "Políticas de acesso — preferir variáveis de ambiente no .env",
+          "dmPolicy": "allowlist",
+          "groupPolicy": "allowlist",
+          "groupAllowFrom": [],
           "sendReadReceipts": true
         }
       }
@@ -19,11 +26,14 @@
   },
   "bindings": [
     {
-      "_comment": "Roteia mensagens do grupo específico para o agente padrão",
+      "_comment": [
+        "Binding opcional: roteia mensagens de um grupo específico para um agente.",
+        "Use !id dentro do grupo (como admin) para obter o ID do grupo."
+      ],
       "agentId": "default",
       "match": {
         "channel": "whatsapp",
-        "peerId": "SEU_ID_DE_GRUPO@g.us",
+        "peerId": "SEU_GRUPO_ID@g.us",
         "peerKind": "group"
       }
     }

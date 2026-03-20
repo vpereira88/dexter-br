@@ -9,6 +9,7 @@ export async function monitorWhatsAppChannel(params: {
   accountId: string;
   authDir: string;
   verbose: boolean;
+  adminPhone?: string | null;
   allowFrom: string[];
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
@@ -39,6 +40,7 @@ export async function monitorWhatsAppChannel(params: {
         accountId: params.accountId,
         authDir: params.authDir,
         verbose: params.verbose,
+        adminPhone: params.adminPhone,
         allowFrom: params.allowFrom,
         dmPolicy: params.dmPolicy,
         groupPolicy: params.groupPolicy,
