@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { z } from 'zod';
-import { normalizeE164 } from './utils.js';
+import { normalizeE164, toWhatsappJid } from './utils.js';
 
 const DEFAULT_GATEWAY_PATH = join(homedir(), '.dexter', 'gateway.json');
 const DmPolicySchema = z.enum(['pairing', 'allowlist', 'open', 'disabled']);
@@ -231,8 +231,16 @@ export function resolveWhatsAppAccount(
 
   // groupAllowFrom: env list merges with gateway.json (env takes precedence if set)
   const envAllowGroups = parseEnvList(process.env.DEXTER_ALLOW_GROUPS);
-  const groupAllowFrom =
+  const rawGroupAllowFrom =
     envAllowGroups.length > 0 ? envAllowGroups : (account.groupAllowFrom ?? []);
+  const groupAllowFrom = Array.from(
+    new Set(
+      rawGroupAllowFrom
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => (entry === '*' ? '*' : toWhatsappJid(entry))),
+    ),
+  );
 
   // Policies: env takes precedence over gateway.json
   const dmPolicy =

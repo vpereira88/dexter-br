@@ -68,7 +68,7 @@ describe('access control', () => {
   test('blocks group message when sender not in group allowlist', async () => {
     const result = await checkInboundAccessControl({
       accountId: 'default',
-      from: '+15550000000',
+      from: '120363000000000001@g.us',
       selfE164: '+15551234567',
       senderE164: '+15550000000',
       group: true,
@@ -76,31 +76,32 @@ describe('access control', () => {
       dmPolicy: 'open',
       groupPolicy: 'allowlist',
       allowFrom: ['*'],
-      groupAllowFrom: ['+15551112222'],
+      groupAllowFrom: ['120363999999999999@g.us'],
       reply: async () => {},
     });
     expect(result.allowed).toBe(false);
+    expect(result.denyReason).toBe('group_not_allowlisted');
   });
 
-  test('blocks group messages in self-chat mode even when group policy is open', async () => {
+  test('allows group message when group is allowlisted', async () => {
     const result = await checkInboundAccessControl({
       accountId: 'default',
-      from: '+15551234567',
+      from: '120363000000000001@g.us',
       selfE164: '+15551234567',
       senderE164: '+15551234567',
       group: true,
       isFromMe: true,
-      dmPolicy: 'open',
-      groupPolicy: 'open',
+      dmPolicy: 'allowlist',
+      groupPolicy: 'allowlist',
       allowFrom: ['+15551234567'],
-      groupAllowFrom: ['*'],
+      groupAllowFrom: ['120363000000000001@g.us'],
       reply: async () => {},
     });
-    expect(result.allowed).toBe(false);
-    expect(result.denyReason).toBe('group_blocked_self_chat_mode');
+    expect(result.allowed).toBe(true);
+    expect(result.isSelfChat).toBe(false);
   });
 
-  test('blocks non-self sender in self-chat mode', async () => {
+  test('blocks non-allowlisted direct sender when only self is allowlisted', async () => {
     const result = await checkInboundAccessControl({
       accountId: 'default',
       from: '+15550000000',
@@ -108,14 +109,32 @@ describe('access control', () => {
       senderE164: '+15550000000',
       group: false,
       isFromMe: false,
-      dmPolicy: 'open',
+      dmPolicy: 'allowlist',
       groupPolicy: 'disabled',
       allowFrom: ['+15551234567'],
       groupAllowFrom: [],
       reply: async () => {},
     });
     expect(result.allowed).toBe(false);
-    expect(result.denyReason).toBe('sender_not_self_in_self_chat_mode');
+    expect(result.denyReason).toBe('dm_sender_not_allowlisted');
+  });
+
+  test('allows admin in a non-allowlisted group', async () => {
+    const result = await checkInboundAccessControl({
+      accountId: 'default',
+      from: '120363000000000001@g.us',
+      selfE164: '+15551234567',
+      senderE164: '+15550000000',
+      group: true,
+      isFromMe: false,
+      adminPhone: '+15550000000',
+      dmPolicy: 'allowlist',
+      groupPolicy: 'allowlist',
+      allowFrom: ['+15551112222'],
+      groupAllowFrom: [],
+      reply: async () => {},
+    });
+    expect(result.allowed).toBe(true);
+    expect(result.isAdmin).toBe(true);
   });
 });
-
