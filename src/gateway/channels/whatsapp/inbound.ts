@@ -157,10 +157,13 @@ export async function monitorWebInbox(params: {
       }
 
       const isGroup = isJidGroup(remoteJid) === true;
-      const senderJid = message.key?.participant ?? remoteJid;
-      
-      // For direct chats, resolve LID JID to phone JID for reliable replies
+      const rawSenderJid = message.key?.participant ?? remoteJid;
+
+      // Resolve LID JIDs to phone JIDs for both DMs and group senders.
+      // Baileys 7.x uses LID (@lid) for multi-device participants; we need the
+      // real phone JID to match allowlists and admin checks correctly.
       let replyToJid = remoteJid;
+      let senderJid = rawSenderJid;
       if (!isGroup) {
         debugLog(`[inbound] attempting LID resolution for ${remoteJid}, lidLookup available: ${!!lidLookup}, getPNForLID available: ${!!lidLookup?.getPNForLID}`);
         const resolvedJid = await resolveJidToPhoneJid(remoteJid, lidLookup, debugLog);
@@ -171,8 +174,16 @@ export async function monitorWebInbox(params: {
         } else {
           debugLog(`[inbound] LID resolution failed, using original ${remoteJid} for replies`);
         }
+      } else if (rawSenderJid.endsWith('@lid') && lidLookup?.getPNForLID) {
+        // Resolve group participant LID to real phone JID for admin/allowlist checks
+        debugLog(`[inbound] attempting LID resolution for group sender ${rawSenderJid}`);
+        const resolvedSender = await resolveJidToPhoneJid(rawSenderJid, lidLookup, debugLog);
+        if (resolvedSender) {
+          senderJid = resolvedSender;
+          debugLog(`[inbound] resolved group sender LID to ${resolvedSender}`);
+        }
       }
-      
+
       const from = toPhoneFromJid(isGroup ? senderJid : replyToJid);
       const messageTimestampMs = message.messageTimestamp
         ? Number(message.messageTimestamp) * 1000

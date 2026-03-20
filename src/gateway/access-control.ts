@@ -136,7 +136,14 @@ export async function checkInboundAccessControl(params: {
   }
 
   const isSamePhone = normalizedSelfE164 != null && normalizedFrom === normalizedSelfE164;
-  const isSelfChat = isSelfChatMode(params.selfE164, params.allowFrom);
+  // Self-chat mode only activates for bots used exclusively by the owner (messages to self).
+  // It must NOT activate when admin, groups, or open policies are configured.
+  const hasBroaderConfig =
+    (normalizedAdminPhone != null && normalizedAdminPhone.length > 0) ||
+    params.groupAllowFrom.length > 0 ||
+    params.groupPolicy === 'open' ||
+    params.groupPolicy === 'allowlist';
+  const isSelfChat = !hasBroaderConfig && isSelfChatMode(params.selfE164, params.allowFrom);
   const pairingGraceMs =
     typeof params.pairingGraceMs === 'number' && params.pairingGraceMs > 0
       ? params.pairingGraceMs
