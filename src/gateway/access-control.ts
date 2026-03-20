@@ -88,6 +88,7 @@ export type InboundAccessControlResult = {
   allowed: boolean;
   shouldMarkRead: boolean;
   isSelfChat: boolean;
+  isAdmin: boolean;
   resolvedAccountId: string;
   denyReason?: string;
 };
@@ -100,6 +101,7 @@ export async function checkInboundAccessControl(params: {
   group: boolean;
   pushName?: string;
   isFromMe: boolean;
+  adminPhone?: string | null;
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   allowFrom: string[];
@@ -112,6 +114,27 @@ export async function checkInboundAccessControl(params: {
   const normalizedSelfE164 = params.selfE164 ? normalizeE164(params.selfE164) : null;
   const normalizedFrom = normalizeE164(params.from);
   const normalizedSenderE164 = params.senderE164 ? normalizeE164(params.senderE164) : null;
+  const normalizedAdminPhone = params.adminPhone ? normalizeE164(params.adminPhone) : null;
+
+  // Admin check: the configured admin bypasses ALL allowlists and policies.
+  // The admin sender is identified by their E.164 phone number.
+  // In groups, we match against senderE164; in DMs, against from.
+  const senderForAdminCheck = normalizedSenderE164 ?? normalizedFrom;
+  const isAdmin =
+    normalizedAdminPhone != null &&
+    normalizedAdminPhone.length > 0 &&
+    senderForAdminCheck === normalizedAdminPhone;
+
+  if (isAdmin) {
+    return {
+      allowed: true,
+      shouldMarkRead: true,
+      isSelfChat: false,
+      isAdmin: true,
+      resolvedAccountId: params.accountId,
+    };
+  }
+
   const isSamePhone = normalizedSelfE164 != null && normalizedFrom === normalizedSelfE164;
   const isSelfChat = isSelfChatMode(params.selfE164, params.allowFrom);
   const pairingGraceMs =
@@ -138,6 +161,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'group_blocked_self_chat_mode',
       };
@@ -150,6 +174,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'sender_not_self_in_self_chat_mode',
       };
@@ -158,6 +183,7 @@ export async function checkInboundAccessControl(params: {
       allowed: true,
       shouldMarkRead: true,
       isSelfChat,
+      isAdmin: false,
       resolvedAccountId: params.accountId,
     };
   }
@@ -170,6 +196,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'group_policy_not_permissive',
       };
@@ -182,6 +209,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'group_allowlist_empty',
       };
@@ -194,6 +222,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'group_sender_not_allowlisted',
       };
@@ -206,6 +235,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'dm_policy_disabled',
       };
@@ -217,6 +247,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'outbound_dm_to_non_self',
       };
@@ -234,6 +265,7 @@ export async function checkInboundAccessControl(params: {
           allowed: false,
           shouldMarkRead: false,
           isSelfChat,
+          isAdmin: false,
           resolvedAccountId: params.accountId,
           denyReason: 'dm_sender_not_allowlisted',
         };
@@ -245,6 +277,7 @@ export async function checkInboundAccessControl(params: {
     allowed: true,
     shouldMarkRead: true,
     isSelfChat,
+    isAdmin: false,
     resolvedAccountId: params.accountId,
   };
 }

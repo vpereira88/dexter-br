@@ -23,6 +23,7 @@ export function createWhatsAppPlugin(params: {
           accountId: ctx.accountId,
           authDir: ctx.account.authDir,
           verbose: true,
+          adminPhone: ctx.account.adminPhone,
           allowFrom: ctx.account.allowFrom,
           dmPolicy: ctx.account.dmPolicy,
           groupPolicy: ctx.account.groupPolicy,

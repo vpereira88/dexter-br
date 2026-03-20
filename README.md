@@ -141,23 +141,91 @@ bun run gateway:login
 bun run gateway
 ```
 
-### Configurar grupo WhatsApp
+---
 
-Copie o arquivo de exemplo e ajuste:
+### Configuração de Acesso via `.env` (recomendado)
+
+A forma mais simples de configurar quem pode usar o bot é pelo arquivo `.env`.
+
+#### 1. Admin Universal
+
+O **admin** tem acesso irrestrito: pode enviar comandos em qualquer grupo ou conversa, mesmo que o grupo/contato não esteja na allowlist. Ideal para gerenciar o bot remotamente.
+
+```env
+DEXTER_ADMIN_PHONE=+5511999999999
+```
+
+#### 2. Obtendo o ID de um grupo com `!id`
+
+Para liberar um grupo, o admin precisa do ID dele. Basta entrar no grupo e enviar:
+
+```
+!id
+```
+
+O bot responde imediatamente com o ID do grupo, mesmo que ele ainda não esteja liberado:
+
+```
+*DexterBr*:
+*Grupo:* Meu Grupo de Investimentos
+*ID:* `120363407692865732@g.us`
+```
+
+Copie o ID retornado e adicione no `.env`:
+
+```env
+DEXTER_ALLOW_GROUPS=120363407692865732@g.us
+```
+
+#### 3. Configuração completa do `.env`
+
+```env
+# Admin com acesso irrestrito (formato E.164)
+DEXTER_ADMIN_PHONE=+5511999999999
+
+# Contatos liberados para mensagens diretas (separados por vírgula)
+DEXTER_ALLOW_PHONES=+5511999999999,+5511888888888
+
+# IDs dos grupos liberados (use !id no grupo para obter)
+DEXTER_ALLOW_GROUPS=120363407692865732@g.us,120363407692865733@g.us
+
+# Política para DMs: allowlist | open | disabled
+DEXTER_DM_POLICY=allowlist
+
+# Política para grupos: allowlist | open | disabled
+DEXTER_GROUP_POLICY=allowlist
+```
+
+#### 4. Políticas de acesso
+
+| Política | DM | Grupos | Descrição |
+|---|---|---|---|
+| `allowlist` | ✅ | ✅ | Apenas contatos/grupos listados (recomendado) |
+| `open` | ✅ | ✅ | Qualquer pessoa/grupo pode interagir |
+| `disabled` | ✅ | ✅ | Bloqueia totalmente DMs ou grupos |
+
+> **Segurança:** O bot nunca responde a contatos não autorizados — mensagens de números fora da lista são silenciosamente ignoradas.
+
+---
+
+### Comandos do Bot
+
+| Comando | Quem pode usar | Descrição |
+|---|---|---|
+| `!id` | Admin + autorizados | Retorna o ID do grupo ou número da conversa |
+| `!stop` | Admin + autorizados | Para o bot imediatamente |
+
+---
+
+### Configuração avançada via `gateway.json` (opcional)
+
+Para múltiplas contas ou bindings customizados, copie o arquivo de exemplo:
 
 ```bash
 cp gateway.json.example ~/.dexter/gateway.json
 ```
 
-O arquivo `gateway.json.example` na raiz do projeto contém a configuração padrão incluindo o grupo pré-configurado. Edite o `peerId` no bloco `bindings` com o ID do seu grupo se necessário.
-
-**Políticas de acesso disponíveis:**
-
-| Política | Descrição |
-|---|---|
-| `groupPolicy: "open"` | Qualquer membro do grupo pode interagir |
-| `groupPolicy: "allowlist"` | Apenas números em `groupAllowFrom` |
-| `groupPolicy: "disabled"` | Grupos bloqueados (padrão) |
+Na maioria dos casos, o `.env` é suficiente e o `gateway.json` não é necessário.
 
 ---
 

@@ -90,6 +90,7 @@ export async function monitorWebInbox(params: {
   accountId: string;
   authDir: string;
   verbose: boolean;
+  adminPhone?: string | null;
   allowFrom: string[];
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
@@ -184,6 +185,7 @@ export async function monitorWebInbox(params: {
         senderE164: isGroup ? toPhoneFromJid(senderJid) || null : from || null,
         group: isGroup,
         isFromMe: Boolean(message.key?.fromMe),
+        adminPhone: params.adminPhone,
         dmPolicy: params.dmPolicy,
         groupPolicy: params.groupPolicy,
         allowFrom: params.allowFrom,
@@ -229,6 +231,7 @@ export async function monitorWebInbox(params: {
         senderId: from,
         senderName: message.pushName ? String(message.pushName) : undefined,
         isFromMe: Boolean(message.key?.fromMe),
+        isAdmin: access.isAdmin,
         selfE164,
         groupSubject,
         groupParticipants,
