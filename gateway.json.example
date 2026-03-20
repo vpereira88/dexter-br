@@ -24,18 +24,5 @@
       }
     }
   },
-  "bindings": [
-    {
-      "_comment": [
-        "Binding opcional: roteia mensagens de um grupo específico para um agente.",
-        "Use !id dentro do grupo (como admin) para obter o ID do grupo."
-      ],
-      "agentId": "default",
-      "match": {
-        "channel": "whatsapp",
-        "peerId": "SEU_GRUPO_ID@g.us",
-        "peerKind": "group"
-      }
-    }
-  ]
+  "_bindings_comment": "Roteamento (bindings) é OPCIONAL. Se omitido, todas as mensagens vão para o agente 'default'. Configure acesso exclusivamente via .env (DEXTER_ALLOW_PHONES, DEXTER_ALLOW_GROUPS, DEXTER_DM_POLICY, DEXTER_GROUP_POLICY)."
 }

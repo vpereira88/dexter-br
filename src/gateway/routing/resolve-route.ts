@@ -47,61 +47,66 @@ export function resolveRoute(input: {
   const accountId = (input.accountId ?? DEFAULT_ACCOUNT_ID).trim() || DEFAULT_ACCOUNT_ID;
   const peer = input.peer ? { kind: input.peer.kind, id: input.peer.id.trim() } : null;
 
-  const bindings = input.cfg.bindings.filter((binding) => {
-    if (normalizeToken(binding.match.channel) !== channel) {
-      return false;
-    }
-    if (binding.match.accountId && binding.match.accountId !== '*' && binding.match.accountId !== accountId) {
-      return false;
-    }
-    return true;
-  });
+  // If bindings exist and are configured, use them (for backward compatibility)
+  if (input.cfg.bindings && input.cfg.bindings.length > 0) {
+    const bindings = input.cfg.bindings.filter((binding) => {
+      if (normalizeToken(binding.match.channel) !== channel) {
+        return false;
+      }
+      if (binding.match.accountId && binding.match.accountId !== '*' && binding.match.accountId !== accountId) {
+        return false;
+      }
+      return true;
+    });
 
-  if (peer) {
-    const peerMatch = bindings.find(
-      (binding) => binding.match.peerKind === peer.kind && binding.match.peerId === peer.id,
+    if (peer) {
+      const peerMatch = bindings.find(
+        (binding) => binding.match.peerKind === peer.kind && binding.match.peerId === peer.id,
+      );
+      if (peerMatch) {
+        const agentId = peerMatch.agentId.trim() || DEFAULT_AGENT_ID;
+        return {
+          agentId,
+          channel,
+          accountId,
+          sessionKey: buildSessionKey({ agentId, channel, accountId, peer }),
+          mainSessionKey: buildSessionKey({ agentId, channel, accountId, peer: null }),
+          matchedBy: 'binding.peer',
+        };
+      }
+    }
+
+    const accountMatch = bindings.find(
+      (binding) => Boolean(binding.match.accountId) && !binding.match.peerId,
     );
-    if (peerMatch) {
-      const agentId = peerMatch.agentId.trim() || DEFAULT_AGENT_ID;
+    if (accountMatch) {
+      const agentId = accountMatch.agentId.trim() || DEFAULT_AGENT_ID;
       return {
         agentId,
         channel,
         accountId,
         sessionKey: buildSessionKey({ agentId, channel, accountId, peer }),
         mainSessionKey: buildSessionKey({ agentId, channel, accountId, peer: null }),
-        matchedBy: 'binding.peer',
+        matchedBy: 'binding.account',
+      };
+    }
+
+    const channelMatch = bindings.find((binding) => !binding.match.accountId && !binding.match.peerId);
+    if (channelMatch) {
+      const agentId = channelMatch.agentId.trim() || DEFAULT_AGENT_ID;
+      return {
+        agentId,
+        channel,
+        accountId,
+        sessionKey: buildSessionKey({ agentId, channel, accountId, peer }),
+        mainSessionKey: buildSessionKey({ agentId, channel, accountId, peer: null }),
+        matchedBy: 'binding.channel',
       };
     }
   }
 
-  const accountMatch = bindings.find(
-    (binding) => Boolean(binding.match.accountId) && !binding.match.peerId,
-  );
-  if (accountMatch) {
-    const agentId = accountMatch.agentId.trim() || DEFAULT_AGENT_ID;
-    return {
-      agentId,
-      channel,
-      accountId,
-      sessionKey: buildSessionKey({ agentId, channel, accountId, peer }),
-      mainSessionKey: buildSessionKey({ agentId, channel, accountId, peer: null }),
-      matchedBy: 'binding.account',
-    };
-  }
-
-  const channelMatch = bindings.find((binding) => !binding.match.accountId && !binding.match.peerId);
-  if (channelMatch) {
-    const agentId = channelMatch.agentId.trim() || DEFAULT_AGENT_ID;
-    return {
-      agentId,
-      channel,
-      accountId,
-      sessionKey: buildSessionKey({ agentId, channel, accountId, peer }),
-      mainSessionKey: buildSessionKey({ agentId, channel, accountId, peer: null }),
-      matchedBy: 'binding.channel',
-    };
-  }
-
+  // Default behavior: all messages route to the 'default' agent
+  // Configuration is done entirely through .env (DEXTER_* variables)
   return {
     agentId: DEFAULT_AGENT_ID,
     channel,

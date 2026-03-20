@@ -217,15 +217,21 @@ DEXTER_GROUP_POLICY=allowlist
 
 ---
 
-### Configuração avançada via `gateway.json` (opcional)
+### Configuração avançada via `gateway.json` (OPCIONAL)
 
-Para múltiplas contas ou bindings customizados, copie o arquivo de exemplo:
+**Na maioria dos casos, o `.env` é totalmente suficiente e o `gateway.json` NÃO é necessário.**
+
+O `gateway.json` é utilizado apenas para casos muito específicos:
+- Múltiplas contas de WhatsApp
+- Roteamento customizado de mensagens para agentes diferentes
+
+Se precisar de `gateway.json`, copie o arquivo de exemplo:
 
 ```bash
 cp gateway.json.example ~/.dexter/gateway.json
 ```
 
-Na maioria dos casos, o `.env` é suficiente e o `gateway.json` não é necessário.
+Caso contrário, simplesmente delete ou ignore o `gateway.json` — o bot funcionará normalmente com apenas o `.env`.
 
 ---
 
