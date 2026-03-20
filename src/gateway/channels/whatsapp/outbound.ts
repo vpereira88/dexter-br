@@ -52,14 +52,23 @@ function extractE164FromJid(jid: string): string | null {
 export function assertOutboundAllowed(params: {
   to: string;
   accountId?: string;
-}): { toJid: string; recipientE164: string } {
+}): { toJid: string; recipientE164: string | null } {
   const cfg = loadGatewayConfig();
   const accountId = params.accountId ?? cfg.gateway.accountId;
   const account = resolveWhatsAppAccount(cfg, accountId);
   const toJid = toWhatsappJid(params.to);
 
+  // Group replies: allowed when groupPolicy permits it or the group is explicitly allowed
   if (toJid.endsWith('@g.us')) {
-    throw new Error('Outbound blocked: group destinations are disabled in strict self-chat mode.');
+    const groupAllowed =
+      account.groupPolicy === 'open' ||
+      account.groupPolicy === 'allowlist' ||
+      account.groupAllowFrom.includes(toJid) ||
+      account.adminPhone != null;
+    if (!groupAllowed) {
+      throw new Error('Outbound blocked: group destinations are not enabled.');
+    }
+    return { toJid, recipientE164: null };
   }
 
   const recipientE164 = extractE164FromJid(toJid);
@@ -67,14 +76,15 @@ export function assertOutboundAllowed(params: {
     throw new Error(`Outbound blocked: invalid recipient JID ${toJid}`);
   }
 
-  // Strict mode: require explicit recipient allowlist entries and ignore wildcard.
-  const explicitAllowedRecipients = account.allowFrom
-    .filter((entry) => entry !== '*')
-    .map(normalizeE164);
-  if (explicitAllowedRecipients.length === 0) {
-    throw new Error('Outbound blocked: no explicit allowFrom recipient configured.');
+  // If admin is configured, always allow sending to any number
+  if (account.adminPhone && normalizeE164(account.adminPhone) === recipientE164) {
+    return { toJid, recipientE164 };
   }
-  if (!explicitAllowedRecipients.includes(recipientE164)) {
+
+  // DM allowlist check
+  const allowFrom = account.allowFrom.map(normalizeE164);
+  const hasWildcard = account.allowFrom.includes('*');
+  if (!hasWildcard && allowFrom.length > 0 && !allowFrom.includes(recipientE164)) {
     throw new Error(`Outbound blocked: ${recipientE164} is not in allowFrom.`);
   }
 
