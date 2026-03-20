@@ -92,14 +92,12 @@ export const brazilianFundamentalsTool = new DynamicStructuredTool({
 
     // ─── Fundamentals ─────────────────────────────────────────────────────────
     // Check daily cache first (fundamentals are quarterly/annual, safe to cache 1 day)
-    if (input.dataType !== 'historico') {
-      const cached = readDailyCache(ticker);
-      if (cached && cached._dataType === input.dataType) {
-        return formatToolResult(cached, [
-          `https://www.fundamentus.com.br/detalhes.php?papel=${ticker}`,
-          `https://statusinvest.com.br/acoes/${ticker.toLowerCase()}`,
-        ]);
-      }
+    const cached = readDailyCache(ticker);
+    if (cached && cached._dataType === input.dataType) {
+      return formatToolResult(cached, [
+        `https://www.fundamentus.com.br/detalhes.php?papel=${ticker}`,
+        `https://statusinvest.com.br/acoes/${ticker.toLowerCase()}`,
+      ]);
     }
 
     onProgress?.(`Buscando dados fundamentalistas para ${ticker}...`);
@@ -213,6 +211,5 @@ export const brazilianFundamentalsTool = new DynamicStructuredTool({
     ]);
   },
 });
-
 
 

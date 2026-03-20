@@ -29,14 +29,14 @@ export const PROVIDERS: ProviderDef[] = [
     displayName: 'Anthropic',
     modelPrefix: 'claude-',
     apiKeyEnvVar: 'ANTHROPIC_API_KEY',
-    fastModel: 'claude-3-5-sonnet-latest',
+    fastModel: 'claude-sonnet-4-6',
   },
   {
     id: 'google',
     displayName: 'Google',
     modelPrefix: 'gemini-',
     apiKeyEnvVar: 'GOOGLE_API_KEY',
-    fastModel: 'gemini-3-flash-preview',
+    fastModel: 'gemini-2.5-flash',
   },
 ];
 

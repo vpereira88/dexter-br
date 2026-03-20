@@ -1,14 +1,11 @@
 import type { AnyMessageContent } from '@whiskeysockets/baileys';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import type { WaSocket } from './session.js';
 import { loadGatewayConfig, resolveWhatsAppAccount } from '../../config.js';
 import { normalizeE164, toWhatsappJid } from '../../utils.js';
+import { appendGatewayDebugLog } from '../../debug-log.js';
 
 function debugLog(msg: string) {
-  const logPath = path.join(os.homedir(), '.dexter', 'gateway-debug.log');
-  fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`);
+  appendGatewayDebugLog(msg);
 }
 
 type ActiveListener = {
@@ -62,7 +59,6 @@ export function assertOutboundAllowed(params: {
   if (toJid.endsWith('@g.us')) {
     const groupAllowed =
       account.groupPolicy === 'open' ||
-      account.groupPolicy === 'allowlist' ||
       account.groupAllowFrom.includes(toJid) ||
       account.adminPhone != null;
     if (!groupAllowed) {
@@ -116,4 +112,3 @@ export async function sendComposing(params: { to: string; accountId?: string }):
   const { toJid: to } = assertOutboundAllowed({ to: params.to, accountId: params.accountId });
   await active.sock.sendPresenceUpdate('composing', to);
 }
-

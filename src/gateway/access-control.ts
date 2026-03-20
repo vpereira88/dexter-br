@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomInt } from 'node:crypto';
-import { isSelfChatMode, normalizeE164 } from './utils.js';
+import { isSelfChatMode, normalizeE164, toWhatsappJid } from './utils.js';
 
 const PAIRING_REPLY_HISTORY_GRACE_MS = 30_000;
 
@@ -136,14 +136,12 @@ export async function checkInboundAccessControl(params: {
   }
 
   const isSamePhone = normalizedSelfE164 != null && normalizedFrom === normalizedSelfE164;
-  // Self-chat mode only activates for bots used exclusively by the owner (messages to self).
-  // It must NOT activate when admin, groups, or open policies are configured.
-  const hasBroaderConfig =
-    (normalizedAdminPhone != null && normalizedAdminPhone.length > 0) ||
-    params.groupAllowFrom.length > 0 ||
-    params.groupPolicy === 'open' ||
-    params.groupPolicy === 'allowlist';
-  const isSelfChat = !hasBroaderConfig && isSelfChatMode(params.selfE164, params.allowFrom);
+  const senderIsSelf =
+    normalizedSelfE164 != null &&
+    (normalizedFrom === normalizedSelfE164 || normalizedSenderE164 === normalizedSelfE164);
+  // Self-chat mode is only for direct messages to the linked number.
+  // Group access is controlled by group allowlists/policies, except for admin override.
+  const isSelfChat = !params.group && senderIsSelf && isSelfChatMode(params.selfE164, params.allowFrom);
   const pairingGraceMs =
     typeof params.pairingGraceMs === 'number' && params.pairingGraceMs > 0
       ? params.pairingGraceMs
@@ -158,24 +156,11 @@ export async function checkInboundAccessControl(params: {
   const groupHasWildcard = params.groupAllowFrom.includes('*');
   const normalizedGroupAllowFrom = params.groupAllowFrom
     .filter((entry) => entry !== '*')
-    .map(normalizeE164);
+    .map((entry) => toWhatsappJid(entry));
 
   // Strict self-chat mode: only allow direct messages to/from the user's own number.
   // This provides fail-closed behavior even if policies are accidentally broadened.
   if (isSelfChat) {
-    if (params.group) {
-      return {
-        allowed: false,
-        shouldMarkRead: false,
-        isSelfChat,
-        isAdmin: false,
-        resolvedAccountId: params.accountId,
-        denyReason: 'group_blocked_self_chat_mode',
-      };
-    }
-    const senderIsSelf =
-      normalizedSelfE164 != null &&
-      (normalizedFrom === normalizedSelfE164 || normalizedSenderE164 === normalizedSelfE164);
     if (!senderIsSelf) {
       return {
         allowed: false,
@@ -221,17 +206,17 @@ export async function checkInboundAccessControl(params: {
         denyReason: 'group_allowlist_empty',
       };
     }
-    const senderAllowed =
+    const groupAllowed =
       groupHasWildcard ||
-      (normalizedSenderE164 != null && normalizedGroupAllowFrom.includes(normalizedSenderE164));
-    if (!senderAllowed) {
+      normalizedGroupAllowFrom.includes(toWhatsappJid(params.from));
+    if (!groupAllowed) {
       return {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
         isAdmin: false,
         resolvedAccountId: params.accountId,
-        denyReason: 'group_sender_not_allowlisted',
+        denyReason: 'group_not_allowlisted',
       };
     }
   }

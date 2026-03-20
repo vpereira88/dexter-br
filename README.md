@@ -4,7 +4,7 @@ Dexter-Br é um fork do projeto **Dexter**, originalmente desenvolvido por Virat
 
 O projeto mantém o conceito original de um agente de inteligência artificial para análise financeira, porém com integrações voltadas para ativos da **B3** e dados públicos do mercado brasileiro.
 
-Este projeto foi desenvolvido com auxílio de **Google Antigravity, GPT, Sonnet 4.6 e Gemini 3.1**.
+Este projeto foi desenvolvido com auxílio de **GPT-5.2, Claude Sonnet 4.6 e Gemini 2.5**.
 
 ---
 
@@ -61,7 +61,7 @@ Caso alguma plataforma solicite ajustes ou remoção de integração, a solicita
 ## Funcionalidades
 
 * Agente de IA para análise financeira do mercado brasileiro (B3)
-* Suporte a múltiplos provedores de LLM: OpenAI (GPT-5.4), Anthropic (Claude), Google (Gemini), xAI (Grok), Ollama (local) e outros
+* Suporte principal a múltiplos provedores de LLM: OpenAI (`gpt-5.2`), Anthropic (`claude-sonnet-4-6`) e Google (`gemini-2.5-pro` / `gemini-2.5-flash`)
 * Coleta automática de indicadores fundamentalistas (P/L, P/VP, ROE, ROIC, EV/EBITDA, etc.)
 * Integração com dados oficiais da CVM (DRE, Balanço Patrimonial, Fluxo de Caixa)
 * Análise de histórico de dividendos via StatusInvest
@@ -196,15 +196,22 @@ DEXTER_DM_POLICY=allowlist
 DEXTER_GROUP_POLICY=allowlist
 ```
 
-#### 4. Políticas de acesso
+#### 4. Como a autorização funciona
 
-| Política | DM | Grupos | Descrição |
-|---|---|---|---|
-| `allowlist` | ✅ | ✅ | Apenas contatos/grupos listados (recomendado) |
-| `open` | ✅ | ✅ | Qualquer pessoa/grupo pode interagir |
-| `disabled` | ✅ | ✅ | Bloqueia totalmente DMs ou grupos |
+1. **Admin (`DEXTER_ADMIN_PHONE`)** sempre sobrepõe as demais regras.  
+2. **Mensagens diretas** usam `DEXTER_ALLOW_PHONES` quando `DEXTER_DM_POLICY=allowlist`.  
+3. **Grupos** usam `DEXTER_ALLOW_GROUPS` quando `DEXTER_GROUP_POLICY=allowlist`.  
+4. **`groupAllowFrom` / `DEXTER_ALLOW_GROUPS` armazenam IDs de grupo (`@g.us`)**, não números de telefone.  
+5. **Self-chat** continua funcionando para o número vinculado, mas não substitui a allowlist de grupos.  
 
-> **Segurança:** O bot nunca responde a contatos não autorizados — mensagens de números fora da lista são silenciosamente ignoradas.
+| Política | Escopo | Efeito |
+|---|---|---|
+| `allowlist` | DM | Apenas números presentes em `DEXTER_ALLOW_PHONES` |
+| `allowlist` | Grupo | Apenas grupos presentes em `DEXTER_ALLOW_GROUPS` |
+| `open` | DM/Grupo | Libera o escopo inteiro |
+| `disabled` | DM/Grupo | Bloqueia totalmente o escopo |
+
+> **Segurança:** O bot nunca responde a contatos não autorizados e não envia mensagens para grupos fora da allowlist quando a política de grupos está em `allowlist`.
 
 ---
 
@@ -212,7 +219,7 @@ DEXTER_GROUP_POLICY=allowlist
 
 | Comando | Quem pode usar | Descrição |
 |---|---|---|
-| `!id` | Admin + autorizados | Retorna o ID do grupo ou número da conversa |
+| `!id` | Admin + autorizados | Retorna o ID do grupo ou o identificador da conversa direta |
 | `!stop` | Admin + autorizados | Para o bot imediatamente |
 
 ---

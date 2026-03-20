@@ -12,13 +12,10 @@ import { loadGatewayConfig, type GatewayConfig } from './config.js';
 import { runAgentForMessage } from './agent-runner.js';
 import { cleanMarkdownForWhatsApp } from './utils.js';
 import { startHeartbeatRunner } from './heartbeat/index.js';
-import { appendFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { appendGatewayDebugLog } from './debug-log.js';
 
-const LOG_PATH = join(homedir(), '.dexter', 'gateway-debug.log');
 function debugLog(msg: string) {
-  appendFileSync(LOG_PATH, `${new Date().toISOString()} ${msg}\n`);
+  appendGatewayDebugLog(msg);
 }
 
 export type GatewayService = {

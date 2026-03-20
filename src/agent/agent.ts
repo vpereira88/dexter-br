@@ -13,7 +13,7 @@ import { createRunContext, type RunContext } from './run-context.js';
 import { AgentToolExecutor } from './tool-executor.js';
 
 
-const DEFAULT_MODEL = 'gpt-5.4';
+const DEFAULT_MODEL = 'gpt-5.2';
 const DEFAULT_MAX_ITERATIONS = 10;
 const MAX_OVERFLOW_RETRIES = 2;
 const OVERFLOW_KEEP_TOOL_USES = 3;
@@ -189,8 +189,8 @@ export class Agent {
       signal: this.signal,
       fallbackModels: [
         'claude-sonnet-4-6',
-        'gemini-3.1-pro',
-        'gemini-3-flash',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
       ].filter(m => m !== this.model), // Don't include the primary model in fallbacks
     });
     return { response: result.response, usage: result.usage };
