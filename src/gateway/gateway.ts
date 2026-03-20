@@ -34,7 +34,11 @@ async function handleInbound(
   stopGateway?: () => Promise<void>,
 ): Promise<void> {
   const bodyPreview = elide(inbound.body.replace(/\n/g, ' '), 50);
-  console.log(`Inbound message ${inbound.from} (${inbound.chatType}, ${inbound.body.length} chars): "${bodyPreview}"`);
+  const sourceLabel =
+    inbound.chatType === 'group'
+      ? `${inbound.chatId} via ${inbound.from}`
+      : inbound.from;
+  console.log(`Inbound message ${sourceLabel} (${inbound.chatType}, ${inbound.body.length} chars): "${bodyPreview}"`);
   debugLog(`[gateway] handleInbound from=${inbound.from} body="${inbound.body.slice(0, 30)}..."`);
 
   // Handle !id command: returns the chat/group ID so the admin can whitelist it

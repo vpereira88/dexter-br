@@ -189,6 +189,7 @@ export async function monitorWebInbox(params: {
       const access = await checkInboundAccessControl({
         accountId: params.accountId,
         from,
+        chatId: remoteJid,
         selfE164,
         senderE164: isGroup ? toPhoneFromJid(senderJid) || null : from || null,
         group: isGroup,

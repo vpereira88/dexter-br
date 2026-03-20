@@ -86,7 +86,8 @@ describe('access control', () => {
   test('allows group message when group is allowlisted', async () => {
     const result = await checkInboundAccessControl({
       accountId: 'default',
-      from: '120363000000000001@g.us',
+      from: '+15551234567',
+      chatId: '120363000000000001@g.us',
       selfE164: '+15551234567',
       senderE164: '+15551234567',
       group: true,
@@ -99,6 +100,25 @@ describe('access control', () => {
     });
     expect(result.allowed).toBe(true);
     expect(result.isSelfChat).toBe(false);
+  });
+
+  test('blocks group message when sender phone is allowed but chat is not allowlisted', async () => {
+    const result = await checkInboundAccessControl({
+      accountId: 'default',
+      from: '+15551234567',
+      chatId: '120363000000000001@g.us',
+      selfE164: '+15551234567',
+      senderE164: '+15551234567',
+      group: true,
+      isFromMe: true,
+      dmPolicy: 'allowlist',
+      groupPolicy: 'allowlist',
+      allowFrom: ['+15551234567'],
+      groupAllowFrom: ['120363999999999999@g.us'],
+      reply: async () => {},
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.denyReason).toBe('group_not_allowlisted');
   });
 
   test('blocks non-allowlisted direct sender when only self is allowlisted', async () => {
