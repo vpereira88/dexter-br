@@ -77,7 +77,6 @@ export function isAllowedPhone(params: {
 
 export function buildPairingReply(code: string, senderId: string): string {
   return [
-    '*DexterBr*:',
     'Dexter access request received.',
     `Sender ID: ${senderId}`,
     `Approval code: ${code}`,
@@ -229,10 +228,8 @@ export async function checkInboundAccessControl(params: {
         dmHasWildcard ||
         (normalizedAllowFrom.length > 0 && normalizedAllowFrom.includes(normalizedFrom));
       if (!allowed) {
-        if (params.dmPolicy === 'pairing' && !suppressPairingReply) {
-          const pairing = recordPairingRequest(normalizedFrom);
-          await params.reply(buildPairingReply(pairing.code, normalizedFrom));
-        }
+        // SECURITY: Never send any message (including pairing requests) to unauthorized senders.
+        // Silently ignore all messages from non-allowlisted contacts.
         return {
           allowed: false,
           shouldMarkRead: false,

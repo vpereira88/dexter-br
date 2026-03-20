@@ -212,7 +212,7 @@ export function resolveWhatsAppAccount(
     name: account.name,
     authDir,
     allowFrom,
-    dmPolicy: account.dmPolicy ?? 'pairing',
+    dmPolicy: account.dmPolicy ?? 'allowlist',
     groupPolicy: account.groupPolicy ?? 'disabled',
     groupAllowFrom: account.groupAllowFrom ?? [],
     sendReadReceipts: account.sendReadReceipts ?? true,
