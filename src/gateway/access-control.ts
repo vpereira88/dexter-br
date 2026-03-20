@@ -96,6 +96,7 @@ export type InboundAccessControlResult = {
 export async function checkInboundAccessControl(params: {
   accountId: string;
   from: string;
+  chatId?: string;
   selfE164: string | null;
   senderE164: string | null;
   group: boolean;
@@ -115,6 +116,7 @@ export async function checkInboundAccessControl(params: {
   const normalizedFrom = normalizeE164(params.from);
   const normalizedSenderE164 = params.senderE164 ? normalizeE164(params.senderE164) : null;
   const normalizedAdminPhone = params.adminPhone ? normalizeE164(params.adminPhone) : null;
+  const normalizedChatId = params.chatId ? toWhatsappJid(params.chatId) : null;
 
   // Admin check: the configured admin bypasses ALL allowlists and policies.
   // The admin sender is identified by their E.164 phone number.
@@ -208,6 +210,7 @@ export async function checkInboundAccessControl(params: {
     }
     const groupAllowed =
       groupHasWildcard ||
+      (normalizedChatId != null && normalizedGroupAllowFrom.includes(normalizedChatId)) ||
       normalizedGroupAllowFrom.includes(toWhatsappJid(params.from));
     if (!groupAllowed) {
       return {
