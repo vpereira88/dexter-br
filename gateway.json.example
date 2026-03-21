@@ -1,0 +1,33 @@
+{
+  "_comment": "Copie este arquivo para ~/.dexter/gateway.json e ajuste conforme necessário.",
+  "gateway": {
+    "accountId": "default",
+    "logLevel": "info"
+  },
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "accounts": {
+        "default": {
+          "dmPolicy": "allowlist",
+          "allowFrom": ["+55XXXXXXXXXXX"],
+          "groupPolicy": "open",
+          "allowedGroups": ["SEU_ID_DE_GRUPO@g.us"],
+          "groupAllowFrom": ["*"],
+          "sendReadReceipts": true
+        }
+      }
+    }
+  },
+  "bindings": [
+    {
+      "_comment": "Roteia mensagens do grupo específico para o agente padrão",
+      "agentId": "default",
+      "match": {
+        "channel": "whatsapp",
+        "peerId": "SEU_ID_DE_GRUPO@g.us",
+        "peerKind": "group"
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@
     "start": "bun run src/index.tsx",
     "dev": "bun --watch run src/index.tsx",
     "gateway": "tsx src/gateway/index.ts run",
+    "gateway:debug": "DEXTER_DEBUG=1 tsx src/gateway/index.ts run",
     "gateway:login": "tsx src/gateway/index.ts login",
     "typecheck": "tsc --noEmit",
     "test": "bun test",

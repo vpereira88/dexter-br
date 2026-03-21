@@ -98,12 +98,14 @@ export async function checkInboundAccessControl(params: {
   selfE164: string | null;
   senderE164: string | null;
   group: boolean;
+  groupId?: string;
   pushName?: string;
   isFromMe: boolean;
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   allowFrom: string[];
   groupAllowFrom: string[];
+  allowedGroups?: string[];
   messageTimestampMs?: number;
   connectedAtMs?: number;
   pairingGraceMs?: number;
@@ -172,6 +174,17 @@ export async function checkInboundAccessControl(params: {
         isSelfChat,
         resolvedAccountId: params.accountId,
         denyReason: 'group_policy_not_permissive',
+      };
+    }
+    // If allowedGroups is configured, only process messages from listed group JIDs.
+    const allowedGroups = params.allowedGroups ?? [];
+    if (allowedGroups.length > 0 && params.groupId && !allowedGroups.includes(params.groupId)) {
+      return {
+        allowed: false,
+        shouldMarkRead: false,
+        isSelfChat,
+        resolvedAccountId: params.accountId,
+        denyReason: 'group_not_in_allowed_list',
       };
     }
   }

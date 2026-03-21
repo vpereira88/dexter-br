@@ -27,6 +27,7 @@ export function createWhatsAppPlugin(params: {
           dmPolicy: ctx.account.dmPolicy,
           groupPolicy: ctx.account.groupPolicy,
           groupAllowFrom: ctx.account.groupAllowFrom,
+          allowedGroups: ctx.account.allowedGroups,
           sendReadReceipts: ctx.account.sendReadReceipts,
           heartbeatSeconds: cfg.gateway.heartbeatSeconds,
           reconnect: resolveReconnectPolicy(cfg),

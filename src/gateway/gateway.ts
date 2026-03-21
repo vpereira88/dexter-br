@@ -12,14 +12,8 @@ import { loadGatewayConfig, type GatewayConfig } from './config.js';
 import { runAgentForMessage } from './agent-runner.js';
 import { cleanMarkdownForWhatsApp } from './utils.js';
 import { startHeartbeatRunner } from './heartbeat/index.js';
-import { appendFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-
-const LOG_PATH = join(homedir(), '.dexter', 'gateway-debug.log');
-function debugLog(msg: string) {
-  appendFileSync(LOG_PATH, `${new Date().toISOString()} ${msg}\n`);
-}
+import { debugLog } from './debug-log.js';
+import { DEFAULT_MODEL } from '../model/llm.js';
 
 export type GatewayService = {
   stop: () => Promise<void>;
@@ -40,7 +34,7 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
     cfg,
     channel: 'whatsapp',
     accountId: inbound.accountId,
-    peer: { kind: inbound.chatType, id: inbound.senderId },
+    peer: { kind: inbound.chatType, id: inbound.chatType === 'group' ? inbound.chatId : inbound.senderId },
   });
 
   const storePath = resolveSessionStorePath(route.agentId);
@@ -89,7 +83,7 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
     const answer = await runAgentForMessage({
       sessionKey: route.sessionKey,
       query: inbound.body,
-      model: 'gpt-5.2',
+      model: DEFAULT_MODEL,
       modelProvider: 'openai',
       channel: 'whatsapp',
     });

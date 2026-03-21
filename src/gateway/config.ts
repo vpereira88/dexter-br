@@ -23,6 +23,7 @@ const WhatsAppAccountSchema = z.object({
   dmPolicy: DmPolicySchema.optional(),
   groupPolicy: GroupPolicySchema.optional(),
   groupAllowFrom: z.array(z.string()).optional().default([]),
+  allowedGroups: z.array(z.string()).optional().default([]),
   sendReadReceipts: z.boolean().optional().default(true),
 });
 
@@ -129,6 +130,7 @@ export type WhatsAppAccountConfig = {
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   groupAllowFrom: string[];
+  allowedGroups: string[];
   sendReadReceipts: boolean;
 };
 
@@ -215,6 +217,7 @@ export function resolveWhatsAppAccount(
     dmPolicy: account.dmPolicy ?? 'pairing',
     groupPolicy: account.groupPolicy ?? 'disabled',
     groupAllowFrom: account.groupAllowFrom ?? [],
+    allowedGroups: account.allowedGroups ?? [],
     sendReadReceipts: account.sendReadReceipts ?? true,
   };
 }
