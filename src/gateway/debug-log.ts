@@ -1,23 +1,23 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
 
 const LOG_PATH = join(homedir(), '.dexter', 'gateway-debug.log');
 const DEBUG = process.env.DEXTER_DEBUG === '1';
 
-// Ensure log directory exists
-try {
-  mkdirSync(dirname(LOG_PATH), { recursive: true });
-} catch {
-  // ignore
-}
-
-export function debugLog(msg: string): void {
-  const line = `${new Date().toISOString()} ${msg}\n`;
+/**
+ * Best-effort debug logging for gateway flows.
+ * Logging must never interrupt delivery, access control, or heartbeat runs.
+ */
+export function appendGatewayDebugLog(msg: string): void {
   try {
-    appendFileSync(LOG_PATH, line);
+    const logDir = dirname(LOG_PATH);
+    if (!existsSync(logDir)) {
+      mkdirSync(logDir, { recursive: true });
+    }
+    appendFileSync(LOG_PATH, `${new Date().toISOString()} ${msg}\n`);
   } catch {
-    // ignore write errors
+    // Ignore logging failures. Debug output is non-critical.
   }
   if (DEBUG) process.stderr.write(`[debug] ${msg}\n`);
 }

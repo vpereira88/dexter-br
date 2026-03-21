@@ -13,7 +13,11 @@ import { isRecentInboundMessage } from './dedupe.js';
 import { readSelfId } from './auth-store.js';
 import { checkInboundAccessControl } from '../../access-control.js';
 import { resolveJidToPhoneJid, type LidLookup } from './lid.js';
-import { debugLog } from '../../debug-log.js';
+import { appendGatewayDebugLog } from '../../debug-log.js';
+
+function debugLog(msg: string) {
+  appendGatewayDebugLog(msg);
+}
 
 function extractText(message: WAMessage): string {
   const rawMsg = message.message;
@@ -83,6 +87,7 @@ export async function monitorWebInbox(params: {
   accountId: string;
   authDir: string;
   verbose: boolean;
+  adminPhone?: string | null;
   allowFrom: string[];
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
@@ -150,10 +155,13 @@ export async function monitorWebInbox(params: {
       }
 
       const isGroup = isJidGroup(remoteJid) === true;
-      const senderJid = message.key?.participant ?? remoteJid;
-      
-      // For direct chats, resolve LID JID to phone JID for reliable replies
+      const rawSenderJid = message.key?.participant ?? remoteJid;
+
+      // Resolve LID JIDs to phone JIDs for both DMs and group senders.
+      // Baileys 7.x uses LID (@lid) for multi-device participants; we need the
+      // real phone JID to match allowlists and admin checks correctly.
       let replyToJid = remoteJid;
+      let senderJid = rawSenderJid;
       if (!isGroup) {
         debugLog(`[inbound] attempting LID resolution for ${remoteJid}, lidLookup available: ${!!lidLookup}, getPNForLID available: ${!!lidLookup?.getPNForLID}`);
         const resolvedJid = await resolveJidToPhoneJid(remoteJid, lidLookup, debugLog);
@@ -164,8 +172,16 @@ export async function monitorWebInbox(params: {
         } else {
           debugLog(`[inbound] LID resolution failed, using original ${remoteJid} for replies`);
         }
+      } else if (rawSenderJid.endsWith('@lid') && lidLookup?.getPNForLID) {
+        // Resolve group participant LID to real phone JID for admin/allowlist checks
+        debugLog(`[inbound] attempting LID resolution for group sender ${rawSenderJid}`);
+        const resolvedSender = await resolveJidToPhoneJid(rawSenderJid, lidLookup, debugLog);
+        if (resolvedSender) {
+          senderJid = resolvedSender;
+          debugLog(`[inbound] resolved group sender LID to ${resolvedSender}`);
+        }
       }
-      
+
       const from = toPhoneFromJid(isGroup ? senderJid : replyToJid);
       const messageTimestampMs = message.messageTimestamp
         ? Number(message.messageTimestamp) * 1000
@@ -174,11 +190,13 @@ export async function monitorWebInbox(params: {
       const access = await checkInboundAccessControl({
         accountId: params.accountId,
         from,
+        chatId: remoteJid,
         selfE164,
         senderE164: isGroup ? toPhoneFromJid(senderJid) || null : from || null,
         group: isGroup,
         groupId: isGroup ? remoteJid : undefined,
         isFromMe: Boolean(message.key?.fromMe),
+        adminPhone: params.adminPhone,
         dmPolicy: params.dmPolicy,
         groupPolicy: params.groupPolicy,
         allowFrom: params.allowFrom,
@@ -225,6 +243,7 @@ export async function monitorWebInbox(params: {
         senderId: from,
         senderName: message.pushName ? String(message.pushName) : undefined,
         isFromMe: Boolean(message.key?.fromMe),
+        isAdmin: access.isAdmin,
         selfE164,
         groupSubject,
         groupParticipants,
@@ -234,7 +253,7 @@ export async function monitorWebInbox(params: {
           await sock.sendPresenceUpdate('composing', replyToJid);
         },
         reply: async (text: string) => {
-          await sock.sendMessage(replyToJid, { text });
+          await sock.sendMessage(replyToJid, { text: `*DexterBr*:\n${text}` });
         },
         sendMedia: async (payload) => {
           await sock.sendMessage(replyToJid, payload);
@@ -296,4 +315,3 @@ export async function monitorWebInbox(params: {
     },
   };
 }
-

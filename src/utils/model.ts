@@ -16,11 +16,11 @@ const PROVIDER_MODELS: Record<string, Model[]> = {
     { id: 'gpt-5.2', displayName: 'GPT 5.2' },
   ],
   anthropic: [
-    { id: 'claude-3-5-sonnet-latest', displayName: 'Claude 3.5 Sonnet' },
+    { id: 'claude-sonnet-4-6', displayName: 'Claude Sonnet 4.6' },
   ],
   google: [
-    { id: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro' },
-    { id: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash' },
+    { id: 'gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
+    { id: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
   ],
 };
 

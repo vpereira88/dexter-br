@@ -4,7 +4,7 @@ Dexter-Br é um fork do projeto **Dexter**, originalmente desenvolvido por Virat
 
 O projeto mantém o conceito original de um agente de inteligência artificial para análise financeira, porém com integrações voltadas para ativos da **B3** e dados públicos do mercado brasileiro.
 
-Este projeto foi desenvolvido com auxílio de **Google Antigravity, GPT, Sonnet 4.6 e Gemini 3.1**.
+Este projeto foi desenvolvido com auxílio de **GPT-5.2, Claude Sonnet 4.6 e Gemini 2.5**.
 
 ---
 
@@ -61,7 +61,7 @@ Caso alguma plataforma solicite ajustes ou remoção de integração, a solicita
 ## Funcionalidades
 
 * Agente de IA para análise financeira do mercado brasileiro (B3)
-* Suporte a múltiplos provedores de LLM: OpenAI (GPT-5.4), Anthropic (Claude), Google (Gemini), xAI (Grok), Ollama (local) e outros
+* Suporte principal a múltiplos provedores de LLM: OpenAI (`gpt-5.2`), Anthropic (`claude-sonnet-4-6`) e Google (`gemini-2.5-pro` / `gemini-2.5-flash`)
 * Coleta automática de indicadores fundamentalistas (P/L, P/VP, ROE, ROIC, EV/EBITDA, etc.)
 * Integração com dados oficiais da CVM (DRE, Balanço Patrimonial, Fluxo de Caixa)
 * Análise de histórico de dividendos via StatusInvest
@@ -141,23 +141,104 @@ bun run gateway:login
 bun run gateway
 ```
 
-### Configurar grupo WhatsApp
+---
 
-Copie o arquivo de exemplo e ajuste:
+### Configuração de Acesso via `.env` (recomendado)
+
+A forma mais simples de configurar quem pode usar o bot é pelo arquivo `.env`.
+
+#### 1. Admin Universal
+
+O **admin** tem acesso irrestrito: pode enviar comandos em qualquer grupo ou conversa, mesmo que o grupo/contato não esteja na allowlist. Ideal para gerenciar o bot remotamente.
+
+```env
+DEXTER_ADMIN_PHONE=+5511999999999
+```
+
+#### 2. Obtendo o ID de um grupo com `!id`
+
+Para liberar um grupo, o admin precisa do ID dele. Basta entrar no grupo e enviar:
+
+```
+!id
+```
+
+O bot responde imediatamente com o ID do grupo, mesmo que ele ainda não esteja liberado:
+
+```
+*DexterBr*:
+*Grupo:* Meu Grupo de Investimentos
+*ID:* `120363407692865732@g.us`
+```
+
+Copie o ID retornado e adicione no `.env`:
+
+```env
+DEXTER_ALLOW_GROUPS=120363407692865732@g.us
+```
+
+#### 3. Configuração completa do `.env`
+
+```env
+# Admin com acesso irrestrito (formato E.164)
+DEXTER_ADMIN_PHONE=+5511999999999
+
+# Contatos liberados para mensagens diretas (separados por vírgula)
+DEXTER_ALLOW_PHONES=+5511999999999,+5511888888888
+
+# IDs dos grupos liberados (use !id no grupo para obter)
+DEXTER_ALLOW_GROUPS=120363407692865732@g.us,120363407692865733@g.us
+
+# Política para DMs: allowlist | open | disabled
+DEXTER_DM_POLICY=allowlist
+
+# Política para grupos: allowlist | open | disabled
+DEXTER_GROUP_POLICY=allowlist
+```
+
+#### 4. Como a autorização funciona
+
+1. **Admin (`DEXTER_ADMIN_PHONE`)** sempre sobrepõe as demais regras.  
+2. **Mensagens diretas** usam `DEXTER_ALLOW_PHONES` quando `DEXTER_DM_POLICY=allowlist`.  
+3. **Grupos** usam `DEXTER_ALLOW_GROUPS` quando `DEXTER_GROUP_POLICY=allowlist`.  
+4. **`groupAllowFrom` / `DEXTER_ALLOW_GROUPS` armazenam IDs de grupo (`@g.us`)**, não números de telefone.  
+5. **Self-chat** continua funcionando para o número vinculado, mas não substitui a allowlist de grupos.  
+
+| Política | Escopo | Efeito |
+|---|---|---|
+| `allowlist` | DM | Apenas números presentes em `DEXTER_ALLOW_PHONES` |
+| `allowlist` | Grupo | Apenas grupos presentes em `DEXTER_ALLOW_GROUPS` |
+| `open` | DM/Grupo | Libera o escopo inteiro |
+| `disabled` | DM/Grupo | Bloqueia totalmente o escopo |
+
+> **Segurança:** O bot nunca responde a contatos não autorizados e não envia mensagens para grupos fora da allowlist quando a política de grupos está em `allowlist`.
+
+---
+
+### Comandos do Bot
+
+| Comando | Quem pode usar | Descrição |
+|---|---|---|
+| `!id` | Admin + autorizados | Retorna o ID do grupo ou o identificador da conversa direta |
+| `!stop` | Admin + autorizados | Para o bot imediatamente |
+
+---
+
+### Configuração avançada via `gateway.json` (OPCIONAL)
+
+**Na maioria dos casos, o `.env` é totalmente suficiente e o `gateway.json` NÃO é necessário.**
+
+O `gateway.json` é utilizado apenas para casos muito específicos:
+- Múltiplas contas de WhatsApp
+- Roteamento customizado de mensagens para agentes diferentes
+
+Se precisar de `gateway.json`, copie o arquivo de exemplo:
 
 ```bash
 cp gateway.json.example ~/.dexter/gateway.json
 ```
 
-O arquivo `gateway.json.example` na raiz do projeto contém a configuração padrão incluindo o grupo pré-configurado. Edite o `peerId` no bloco `bindings` com o ID do seu grupo se necessário.
-
-**Políticas de acesso disponíveis:**
-
-| Política | Descrição |
-|---|---|
-| `groupPolicy: "open"` | Qualquer membro do grupo pode interagir |
-| `groupPolicy: "allowlist"` | Apenas números em `groupAllowFrom` |
-| `groupPolicy: "disabled"` | Grupos bloqueados (padrão) |
+Caso contrário, simplesmente delete ou ignore o `gateway.json` — o bot funcionará normalmente com apenas o `.env`.
 
 ---
 

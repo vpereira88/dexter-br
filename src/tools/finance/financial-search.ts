@@ -164,9 +164,9 @@ export function createFinancialSearch(model: string): DynamicStructuredTool {
         systemPrompt: buildRouterPrompt(),
         tools: FINANCE_TOOLS,
         fallbackModels: [
-          'claude-3-5-sonnet-latest',
-          'gemini-3.1-pro-preview',
-          'gemini-3-flash-preview',
+          'claude-sonnet-4-6',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
         ].filter(m => m !== model),
       });
       const aiMessage = response as AIMessage;

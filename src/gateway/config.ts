@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { z } from 'zod';
-import { normalizeE164 } from './utils.js';
+import { normalizeE164, toWhatsappJid } from './utils.js';
 
 const DEFAULT_GATEWAY_PATH = join(homedir(), '.dexter', 'gateway.json');
 const DmPolicySchema = z.enum(['pairing', 'allowlist', 'open', 'disabled']);
@@ -23,7 +23,6 @@ const WhatsAppAccountSchema = z.object({
   dmPolicy: DmPolicySchema.optional(),
   groupPolicy: GroupPolicySchema.optional(),
   groupAllowFrom: z.array(z.string()).optional().default([]),
-  allowedGroups: z.array(z.string()).optional().default([]),
   sendReadReceipts: z.boolean().optional().default(true),
 });
 
@@ -126,11 +125,11 @@ export type WhatsAppAccountConfig = {
   name?: string;
   enabled: boolean;
   authDir: string;
+  adminPhone: string | null;
   allowFrom: string[];
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   groupAllowFrom: string[];
-  allowedGroups: string[];
   sendReadReceipts: boolean;
 };
 
@@ -193,13 +192,34 @@ export function listWhatsAppAccountIds(cfg: GatewayConfig): string[] {
   return ids.length > 0 ? ids : [cfg.gateway.accountId];
 }
 
+/**
+ * Parse a comma-separated list of values from an env variable.
+ * Returns an empty array if the variable is not set or empty.
+ */
+function parseEnvList(envVar: string | undefined): string[] {
+  if (!envVar?.trim()) return [];
+  return envVar
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
 export function resolveWhatsAppAccount(
   cfg: GatewayConfig,
   accountId: string,
 ): WhatsAppAccountConfig {
   const account = cfg.channels.whatsapp.accounts?.[accountId] ?? {};
   const authDir = account.authDir ?? join(homedir(), '.dexter', 'credentials', 'whatsapp', accountId);
-  const rawAllowFrom = account.allowFrom ?? cfg.channels.whatsapp.allowFrom ?? [];
+
+  // Admin phone: env takes precedence over gateway.json
+  const adminPhone = process.env.DEXTER_ADMIN_PHONE?.trim() || null;
+
+  // allowFrom: env list merges with gateway.json (env takes precedence if set)
+  const envAllowPhones = parseEnvList(process.env.DEXTER_ALLOW_PHONES);
+  const rawAllowFrom =
+    envAllowPhones.length > 0
+      ? envAllowPhones
+      : (account.allowFrom ?? cfg.channels.whatsapp.allowFrom ?? []);
   const allowFrom = Array.from(
     new Set(
       rawAllowFrom
@@ -208,17 +228,40 @@ export function resolveWhatsAppAccount(
         .map((entry) => (entry === '*' ? '*' : normalizeE164(entry))),
     ),
   );
+
+  // groupAllowFrom: env list merges with gateway.json (env takes precedence if set)
+  const envAllowGroups = parseEnvList(process.env.DEXTER_ALLOW_GROUPS);
+  const rawGroupAllowFrom =
+    envAllowGroups.length > 0 ? envAllowGroups : (account.groupAllowFrom ?? []);
+  const groupAllowFrom = Array.from(
+    new Set(
+      rawGroupAllowFrom
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+        .map((entry) => (entry === '*' ? '*' : toWhatsappJid(entry))),
+    ),
+  );
+
+  // Policies: env takes precedence over gateway.json
+  const dmPolicy =
+    (process.env.DEXTER_DM_POLICY as WhatsAppAccountConfig['dmPolicy'] | undefined) ??
+    account.dmPolicy ??
+    'allowlist';
+  const groupPolicy =
+    (process.env.DEXTER_GROUP_POLICY as WhatsAppAccountConfig['groupPolicy'] | undefined) ??
+    account.groupPolicy ??
+    'disabled';
+
   return {
     accountId,
     enabled: account.enabled ?? true,
     name: account.name,
     authDir,
+    adminPhone,
     allowFrom,
-    dmPolicy: account.dmPolicy ?? 'pairing',
-    groupPolicy: account.groupPolicy ?? 'disabled',
-    groupAllowFrom: account.groupAllowFrom ?? [],
-    allowedGroups: account.allowedGroups ?? [],
+    dmPolicy,
+    groupPolicy,
+    groupAllowFrom,
     sendReadReceipts: account.sendReadReceipts ?? true,
   };
 }
-

@@ -11,6 +11,8 @@ export type WhatsAppInboundMessage = {
   senderId: string;
   senderName?: string;
   isFromMe?: boolean;
+  /** True when the sender is the configured admin (DEXTER_ADMIN_PHONE). Admin bypasses all allowlists. */
+  isAdmin?: boolean;
   selfE164?: string | null;
   groupSubject?: string;
   groupParticipants?: string[];

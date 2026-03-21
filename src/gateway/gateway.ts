@@ -12,8 +12,12 @@ import { loadGatewayConfig, type GatewayConfig } from './config.js';
 import { runAgentForMessage } from './agent-runner.js';
 import { cleanMarkdownForWhatsApp } from './utils.js';
 import { startHeartbeatRunner } from './heartbeat/index.js';
-import { debugLog } from './debug-log.js';
+import { appendGatewayDebugLog } from './debug-log.js';
 import { DEFAULT_MODEL } from '../model/llm.js';
+
+function debugLog(msg: string) {
+  appendGatewayDebugLog(msg);
+}
 
 export type GatewayService = {
   stop: () => Promise<void>;
@@ -25,16 +29,61 @@ function elide(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 3) + '...';
 }
 
-async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage): Promise<void> {
+async function handleInbound(
+  cfg: GatewayConfig,
+  inbound: WhatsAppInboundMessage,
+  stopGateway?: () => Promise<void>,
+): Promise<void> {
   const bodyPreview = elide(inbound.body.replace(/\n/g, ' '), 50);
-  console.log(`Inbound message ${inbound.from} (${inbound.chatType}, ${inbound.body.length} chars): "${bodyPreview}"`);
+  const sourceLabel =
+    inbound.chatType === 'group'
+      ? `${inbound.chatId} via ${inbound.from}`
+      : inbound.from;
+  console.log(`Inbound message ${sourceLabel} (${inbound.chatType}, ${inbound.body.length} chars): "${bodyPreview}"`);
   debugLog(`[gateway] handleInbound from=${inbound.from} body="${inbound.body.slice(0, 30)}..."`);
-  
+
+  // Handle !id command: returns the chat/group ID so the admin can whitelist it
+  if (inbound.body.trim().toLowerCase() === '!id') {
+    debugLog(`[gateway] !id command received from ${inbound.from} (isAdmin=${inbound.isAdmin})`);
+    const label = inbound.chatType === 'group'
+      ? `*Grupo:* ${inbound.groupSubject ?? 'desconhecido'}\n*ID:* \`${inbound.chatId}\``
+      : `*Conversa direta*\n*ID (telefone):* \`${inbound.from}\``;
+    try {
+      await sendMessageWhatsApp({
+        to: inbound.replyToJid,
+        body: `*DexterBr*:\n${label}`,
+        accountId: inbound.accountId,
+      });
+    } catch (err) {
+      debugLog(`[gateway] failed to send !id reply: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return;
+  }
+
+  // Handle !stop command: immediately shut down the gateway
+  if (inbound.body.trim().toLowerCase() === '!stop') {
+    debugLog(`[gateway] !stop command received from ${inbound.from}`);
+    console.log(`[gateway] !stop received from ${inbound.from} — shutting down.`);
+    try {
+      await sendMessageWhatsApp({
+        to: inbound.replyToJid,
+        body: '*DexterBr*:\nBot parado com sucesso. ✅',
+        accountId: inbound.accountId,
+      });
+    } catch (err) {
+      debugLog(`[gateway] failed to send !stop confirmation: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (stopGateway) {
+      await stopGateway();
+    }
+    return;
+  }
+
   const route = resolveRoute({
     cfg,
     channel: 'whatsapp',
     accountId: inbound.accountId,
-    peer: { kind: inbound.chatType, id: inbound.chatType === 'group' ? inbound.chatId : inbound.senderId },
+    peer: { kind: inbound.chatType, id: inbound.senderId },
   });
 
   const storePath = resolveSessionStorePath(route.agentId);
@@ -99,7 +148,7 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
       debugLog(`[gateway] sending reply to ${inbound.replyToJid}`);
       await sendMessageWhatsApp({
         to: inbound.replyToJid,
-        body: cleanedAnswer,
+        body: `*DexterBr*:\n${cleanedAnswer}`,
         accountId: inbound.accountId,
       });
       debugLog(`[gateway] reply sent`);
@@ -117,11 +166,15 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
 
 export async function startGateway(params: { configPath?: string } = {}): Promise<GatewayService> {
   const cfg = loadGatewayConfig(params.configPath);
+
+  // Declare stop upfront so it can be referenced inside onMessage closure
+  let serviceStop: (() => Promise<void>) | undefined;
+
   const plugin = createWhatsAppPlugin({
     loadConfig: () => loadGatewayConfig(params.configPath),
     onMessage: async (inbound) => {
       const current = loadGatewayConfig(params.configPath);
-      await handleInbound(current, inbound);
+      await handleInbound(current, inbound, serviceStop);
     },
   });
   const manager = createChannelManager({
@@ -132,11 +185,13 @@ export async function startGateway(params: { configPath?: string } = {}): Promis
 
   const heartbeat = startHeartbeatRunner({ configPath: params.configPath });
 
+  serviceStop = async () => {
+    heartbeat.stop();
+    await manager.stopAll();
+  };
+
   return {
-    stop: async () => {
-      heartbeat.stop();
-      await manager.stopAll();
-    },
+    stop: serviceStop,
     snapshot: () => manager.getSnapshot(),
   };
 }

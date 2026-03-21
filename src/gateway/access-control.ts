@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { randomInt } from 'node:crypto';
-import { isSelfChatMode, normalizeE164 } from './utils.js';
+import { isSelfChatMode, normalizeE164, toWhatsappJid } from './utils.js';
 
 const PAIRING_REPLY_HISTORY_GRACE_MS = 30_000;
 
@@ -88,6 +88,7 @@ export type InboundAccessControlResult = {
   allowed: boolean;
   shouldMarkRead: boolean;
   isSelfChat: boolean;
+  isAdmin: boolean;
   resolvedAccountId: string;
   denyReason?: string;
 };
@@ -95,17 +96,17 @@ export type InboundAccessControlResult = {
 export async function checkInboundAccessControl(params: {
   accountId: string;
   from: string;
+  chatId?: string;
   selfE164: string | null;
   senderE164: string | null;
   group: boolean;
-  groupId?: string;
   pushName?: string;
   isFromMe: boolean;
+  adminPhone?: string | null;
   dmPolicy: 'pairing' | 'allowlist' | 'open' | 'disabled';
   groupPolicy: 'open' | 'allowlist' | 'disabled';
   allowFrom: string[];
   groupAllowFrom: string[];
-  allowedGroups?: string[];
   messageTimestampMs?: number;
   connectedAtMs?: number;
   pairingGraceMs?: number;
@@ -114,8 +115,35 @@ export async function checkInboundAccessControl(params: {
   const normalizedSelfE164 = params.selfE164 ? normalizeE164(params.selfE164) : null;
   const normalizedFrom = normalizeE164(params.from);
   const normalizedSenderE164 = params.senderE164 ? normalizeE164(params.senderE164) : null;
+  const normalizedAdminPhone = params.adminPhone ? normalizeE164(params.adminPhone) : null;
+  const normalizedChatId = params.chatId ? toWhatsappJid(params.chatId) : null;
+
+  // Admin check: the configured admin bypasses ALL allowlists and policies.
+  // The admin sender is identified by their E.164 phone number.
+  // In groups, we match against senderE164; in DMs, against from.
+  const senderForAdminCheck = normalizedSenderE164 ?? normalizedFrom;
+  const isAdmin =
+    normalizedAdminPhone != null &&
+    normalizedAdminPhone.length > 0 &&
+    senderForAdminCheck === normalizedAdminPhone;
+
+  if (isAdmin) {
+    return {
+      allowed: true,
+      shouldMarkRead: true,
+      isSelfChat: false,
+      isAdmin: true,
+      resolvedAccountId: params.accountId,
+    };
+  }
+
   const isSamePhone = normalizedSelfE164 != null && normalizedFrom === normalizedSelfE164;
-  const isSelfChat = isSelfChatMode(params.selfE164, params.allowFrom);
+  const senderIsSelf =
+    normalizedSelfE164 != null &&
+    (normalizedFrom === normalizedSelfE164 || normalizedSenderE164 === normalizedSelfE164);
+  // Self-chat mode is only for direct messages to the linked number.
+  // Group access is controlled by group allowlists/policies, except for admin override.
+  const isSelfChat = !params.group && senderIsSelf && isSelfChatMode(params.selfE164, params.allowFrom);
   const pairingGraceMs =
     typeof params.pairingGraceMs === 'number' && params.pairingGraceMs > 0
       ? params.pairingGraceMs
@@ -130,28 +158,17 @@ export async function checkInboundAccessControl(params: {
   const groupHasWildcard = params.groupAllowFrom.includes('*');
   const normalizedGroupAllowFrom = params.groupAllowFrom
     .filter((entry) => entry !== '*')
-    .map(normalizeE164);
+    .map((entry) => toWhatsappJid(entry));
 
   // Strict self-chat mode: only allow direct messages to/from the user's own number.
   // This provides fail-closed behavior even if policies are accidentally broadened.
   if (isSelfChat) {
-    if (params.group) {
-      return {
-        allowed: false,
-        shouldMarkRead: false,
-        isSelfChat,
-        resolvedAccountId: params.accountId,
-        denyReason: 'group_blocked_self_chat_mode',
-      };
-    }
-    const senderIsSelf =
-      normalizedSelfE164 != null &&
-      (normalizedFrom === normalizedSelfE164 || normalizedSenderE164 === normalizedSelfE164);
     if (!senderIsSelf) {
       return {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'sender_not_self_in_self_chat_mode',
       };
@@ -160,6 +177,7 @@ export async function checkInboundAccessControl(params: {
       allowed: true,
       shouldMarkRead: true,
       isSelfChat,
+      isAdmin: false,
       resolvedAccountId: params.accountId,
     };
   }
@@ -172,19 +190,9 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'group_policy_not_permissive',
-      };
-    }
-    // If allowedGroups is configured, only process messages from listed group JIDs.
-    const allowedGroups = params.allowedGroups ?? [];
-    if (allowedGroups.length > 0 && params.groupId && !allowedGroups.includes(params.groupId)) {
-      return {
-        allowed: false,
-        shouldMarkRead: false,
-        isSelfChat,
-        resolvedAccountId: params.accountId,
-        denyReason: 'group_not_in_allowed_list',
       };
     }
   }
@@ -195,20 +203,23 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'group_allowlist_empty',
       };
     }
-    const senderAllowed =
+    const groupAllowed =
       groupHasWildcard ||
-      (normalizedSenderE164 != null && normalizedGroupAllowFrom.includes(normalizedSenderE164));
-    if (!senderAllowed) {
+      (normalizedChatId != null && normalizedGroupAllowFrom.includes(normalizedChatId)) ||
+      normalizedGroupAllowFrom.includes(toWhatsappJid(params.from));
+    if (!groupAllowed) {
       return {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
-        denyReason: 'group_sender_not_allowlisted',
+        denyReason: 'group_not_allowlisted',
       };
     }
   }
@@ -219,6 +230,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'dm_policy_disabled',
       };
@@ -230,6 +242,7 @@ export async function checkInboundAccessControl(params: {
         allowed: false,
         shouldMarkRead: false,
         isSelfChat,
+        isAdmin: false,
         resolvedAccountId: params.accountId,
         denyReason: 'outbound_dm_to_non_self',
       };
@@ -241,14 +254,13 @@ export async function checkInboundAccessControl(params: {
         dmHasWildcard ||
         (normalizedAllowFrom.length > 0 && normalizedAllowFrom.includes(normalizedFrom));
       if (!allowed) {
-        if (params.dmPolicy === 'pairing' && !suppressPairingReply) {
-          const pairing = recordPairingRequest(normalizedFrom);
-          await params.reply(buildPairingReply(pairing.code, normalizedFrom));
-        }
+        // SECURITY: Never send any message (including pairing requests) to unauthorized senders.
+        // Silently ignore all messages from non-allowlisted contacts.
         return {
           allowed: false,
           shouldMarkRead: false,
           isSelfChat,
+          isAdmin: false,
           resolvedAccountId: params.accountId,
           denyReason: 'dm_sender_not_allowlisted',
         };
@@ -260,6 +272,7 @@ export async function checkInboundAccessControl(params: {
     allowed: true,
     shouldMarkRead: true,
     isSelfChat,
+    isAdmin: false,
     resolvedAccountId: params.accountId,
   };
 }
